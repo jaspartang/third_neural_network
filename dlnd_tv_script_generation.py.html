@@ -6,8 +6,7 @@
 # ## Get the Data
 # The data is already provided for you.  You'll be using a subset of the original dataset.  It consists of only the scenes in Moe's Tavern.  This doesn't include other versions of the tavern, like "Moe's Cavern", "Flaming Moe's", "Uncle Moe's Family Feed-Bag", etc..
 
-# In[1]:
-
+# In[2]:
 
 """
 DON'T MODIFY ANYTHING IN THIS CELL
@@ -23,8 +22,7 @@ text = text[81:]
 # ## Explore the Data
 # Play around with `view_sentence_range` to view different parts of the data.
 
-# In[2]:
-
+# In[4]:
 
 view_sentence_range = (0, 10)
 
@@ -62,8 +60,7 @@ print('\n'.join(text.split('\n')[view_sentence_range[0]:view_sentence_range[1]])
 # 
 # Return these dictionaries in the following tuple `(vocab_to_int, int_to_vocab)`
 
-# In[3]:
-
+# In[5]:
 
 import numpy as np
 import problem_unittests as tests
@@ -103,8 +100,7 @@ tests.test_create_lookup_tables(create_lookup_tables)
 # 
 # This dictionary will be used to token the symbols and add the delimiter (space) around it.  This separates the symbols as it's own word, making it easier for the neural network to predict on the next word. Make sure you don't use a token that could be confused as a word. Instead of using the token "dash", try using something like "||dash||".
 
-# In[46]:
-
+# In[6]:
 
 def token_lookup():
     """
@@ -132,8 +128,7 @@ tests.test_tokenize(token_lookup)
 # ## Preprocess all the data and save it
 # Running the code cell below will preprocess all the data and save it to file.
 
-# In[47]:
-
+# In[7]:
 
 """
 DON'T MODIFY ANYTHING IN THIS CELL
@@ -145,8 +140,7 @@ helper.preprocess_and_save_data(data_dir, token_lookup, create_lookup_tables)
 # # Check Point
 # This is your first checkpoint. If you ever decide to come back to this notebook or have to restart the notebook, you can start from here. The preprocessed data has been saved to disk.
 
-# In[48]:
-
+# In[8]:
 
 """
 DON'T MODIFY ANYTHING IN THIS CELL
@@ -169,8 +163,7 @@ int_text, vocab_to_int, int_to_vocab, token_dict = helper.load_preprocess()
 # 
 # ### Check the Version of TensorFlow and Access to GPU
 
-# In[49]:
-
+# In[9]:
 
 """
 DON'T MODIFY ANYTHING IN THIS CELL
@@ -198,8 +191,7 @@ else:
 # 
 # Return the placeholders in the following tuple `(Input, Targets, LearningRate)`
 
-# In[67]:
-
+# In[10]:
 
 def get_inputs():
     """
@@ -226,8 +218,7 @@ tests.test_get_inputs(get_inputs)
 # 
 # Return the cell and initial state in the following tuple `(Cell, InitialState)`
 
-# In[173]:
-
+# In[27]:
 
 def get_init_cell(batch_size, rnn_size):
     """
@@ -238,7 +229,7 @@ def get_init_cell(batch_size, rnn_size):
     """
 
     lstm = tf.contrib.rnn.BasicLSTMCell(rnn_size)
-    drop = tf.contrib.rnn.DropoutWrapper(lstm, output_keep_prob=0.9)
+    drop = tf.contrib.rnn.DropoutWrapper(lstm, output_keep_prob=1)
     cell = tf.contrib.rnn.MultiRNNCell([drop])
 
     initial_state = cell.zero_state(batch_size, tf.float32)
@@ -255,8 +246,7 @@ tests.test_get_init_cell(get_init_cell)
 # ### Word Embedding
 # Apply embedding to `input_data` using TensorFlow.  Return the embedded sequence.
 
-# In[174]:
-
+# In[28]:
 
 def get_embed(input_data, vocab_size, embed_dim):
     """
@@ -285,8 +275,7 @@ tests.test_get_embed(get_embed)
 # 
 # Return the outputs and final_state state in the following tuple `(Outputs, FinalState)` 
 
-# In[175]:
-
+# In[29]:
 
 def build_rnn(cell, inputs):
     """
@@ -316,8 +305,7 @@ tests.test_build_rnn(build_rnn)
 # 
 # Return the logits and final state in the following tuple (Logits, FinalState) 
 
-# In[176]:
-
+# In[30]:
 
 def build_nn(cell, rnn_size, input_data, vocab_size, embed_dim):
     """
@@ -331,7 +319,8 @@ def build_nn(cell, rnn_size, input_data, vocab_size, embed_dim):
     """
     embed = get_embed(input_data, vocab_size, embed_dim)
     output, final_state = build_rnn(cell, embed)
-    logits = tf.contrib.layers.fully_connected(output, vocab_size, activation_fn=None)
+    logits = tf.contrib.layers.fully_connected(output, vocab_size, activation_fn=None, 
+                                               weights_initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.01))
     
     return logits, final_state
 
@@ -370,8 +359,7 @@ tests.test_build_nn(build_nn)
 # ]
 # ```
 
-# In[177]:
-
+# In[31]:
 
 def get_batches(int_text, batch_size, seq_length):
     """
@@ -386,6 +374,7 @@ def get_batches(int_text, batch_size, seq_length):
     
     input_data = np.array(int_text[:n_batches*words_per_batch])
     target_data = np.array(int_text[1:n_batches*words_per_batch + 1])
+    target_data[-1] = input_data[0]
     
     input_batches = np.split(input_data.reshape(batch_size, -1), n_batches, 1)
     target_batches = np.split(target_data.reshape(batch_size, -1), n_batches, 1)
@@ -411,23 +400,22 @@ tests.test_get_batches(get_batches)
 # - Set `learning_rate` to the learning rate.
 # - Set `show_every_n_batches` to the number of batches the neural network should print progress.
 
-# In[179]:
-
+# In[50]:
 
 # Number of Epochs
-num_epochs = 50
+num_epochs = 60
 # Batch Size
-batch_size = 512
+batch_size = 256
 # RNN Size
 rnn_size = 512
 # Embedding Dimension Size
-embed_dim = 512
+embed_dim = 256
 # Sequence Length
-seq_length = 10
+seq_length = 15
 # Learning Rate
-learning_rate = 0.01
+learning_rate = 0.005
 # Show stats for every n number of batches
-show_every_n_batches = 13
+show_every_n_batches = 10
 
 """
 DON'T MODIFY ANYTHING IN THIS CELL THAT IS BELOW THIS LINE
@@ -438,8 +426,7 @@ save_dir = './save'
 # ### Build the Graph
 # Build the graph using the neural network you implemented.
 
-# In[180]:
-
+# In[51]:
 
 """
 DON'T MODIFY ANYTHING IN THIS CELL
@@ -475,8 +462,7 @@ with train_graph.as_default():
 # ## Train
 # Train the neural network on the preprocessed data.  If you have a hard time getting a good loss, check the [forms](https://discussions.udacity.com/) to see if anyone is having the same problem.
 
-# In[181]:
-
+# In[52]:
 
 """
 DON'T MODIFY ANYTHING IN THIS CELL
@@ -514,8 +500,7 @@ with tf.Session(graph=train_graph) as sess:
 # ## Save Parameters
 # Save `seq_length` and `save_dir` for generating a new TV script.
 
-# In[182]:
-
+# In[53]:
 
 """
 DON'T MODIFY ANYTHING IN THIS CELL
@@ -526,8 +511,7 @@ helper.save_params((seq_length, save_dir))
 
 # # Checkpoint
 
-# In[183]:
-
+# In[54]:
 
 """
 DON'T MODIFY ANYTHING IN THIS CELL
@@ -551,8 +535,7 @@ seq_length, load_dir = helper.load_params()
 # 
 # Return the tensors in the following tuple `(InputTensor, InitialStateTensor, FinalStateTensor, ProbsTensor)` 
 
-# In[184]:
-
+# In[55]:
 
 def get_tensors(loaded_graph):
     """
@@ -577,8 +560,7 @@ tests.test_get_tensors(get_tensors)
 # ### Choose Word
 # Implement the `pick_word()` function to select the next word using `probabilities`.
 
-# In[185]:
-
+# In[56]:
 
 def pick_word(probabilities, int_to_vocab):
     """
@@ -600,8 +582,7 @@ tests.test_pick_word(pick_word)
 # ## Generate TV Script
 # This will generate the TV script for you.  Set `gen_length` to the length of TV script you want to generate.
 
-# In[186]:
-
+# In[57]:
 
 gen_length = 200
 # homer_simpson, moe_szyslak, or Barney_Gumble
